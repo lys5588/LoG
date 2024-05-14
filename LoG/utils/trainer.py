@@ -336,10 +336,10 @@ class Trainer(nn.Module):
             'num_points': model.num_points,
         }
         print(f'>>> Validation: {iteration}: {len(metric["imgname"])} images')
-        for key, val in metric.items():
+        for key, val in metric.item():
             if key == 'imgname':
                 continue
-            mean_val = sum(val)/len(val)
+            mean_val = (sum(val)/len(val)).item()
             record[key] = mean_val
             if self.global_iterations > 0:
                 self.recorder.log(self.global_iterations, f'val/{key}', mean_val)
@@ -350,12 +350,12 @@ class Trainer(nn.Module):
         for i in range(len(metric['imgname'])):
             record['records'].append({
                 'imgname': metric['imgname'][i],
-                'l1': metric['l1'][i],
+                'l1': metric['l1'][i].item(),
                 'psnr': metric['psnr'][i],
             })
             if 'lpips' in metric:
                 record['records'][-1]['lpips'] = metric['lpips'][i]
-        if False:
+        if True:
             import yaml
             try:
                 yaml.dump(record, open(logname, 'w'))

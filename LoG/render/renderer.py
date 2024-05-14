@@ -148,8 +148,8 @@ class NaiveRendererAndLoss(BaseRender):
             'rotations': rotations,
             'cov3D_precomp': cov3D
         }
-        if not self.use_origin_render and not model.training:
-            name_args['use_filter'] = False
+        # if not self.use_origin_render and not model.training:
+        #     name_args['use_filter'] = False
         ret = rasterizer(**name_args)
         if len(ret) == 5:
             rendered_image, radii, point_id_pixel, point_weight_pixel, point_weight = ret

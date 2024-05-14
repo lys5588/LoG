@@ -102,6 +102,7 @@ class ImageDataset(ImageBase):
                  pre_undis=True, share_camera=False, crop_size=[-1, -1],
                  crop_ltrb=None,
                  **kwargs) -> None:
+        #fxxk why put all param inthe default setting???
         super().__init__(**kwargs)
         self.root = os.path.abspath(root)
         self.cameras = cameras
@@ -113,6 +114,7 @@ class ImageDataset(ImageBase):
         self.scale3d = scale3d
         self.crop_size = crop_size
         self.crop_ltrb = crop_ltrb
+        self.cache=None
         print(f'[{self.__class__.__name__}] set scales: {scales}, crop size: {crop_size}')
         if self.cache is None:
             self.cache = join(self.root, 'cache')

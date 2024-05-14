@@ -1,0 +1,34 @@
+experiment_name: urbanbis/yingrenshi_test_functionability   # dataset/testname
+parents:
+  - config/urbanbis/yingrenshi_test_functionability/dataset.yml
+  - config/urbanbis/yingrenshi_test_functionability/level_of_gaussian.yml
+  - config/urbanbis/yingrenshi_test_functionability/stage_8_4.yml
+
+exp: output/urbanbis/yingrenshi_test_functionability/log
+gpus: [0]
+
+log_interval: 1_000
+save_interval: 10_000
+
+max_steps: 750
+
+RGB_RENDER_L1_SSIM:
+  module: LoG.render.renderer.NaiveRendererAndLoss
+  args:
+    use_origin_render: False
+    use_randback: True
+
+split: "train"
+
+train:
+  dataset: $dataset
+  render: $RGB_RENDER_L1_SSIM
+  stages: $NAIVE_STAGE
+  init:
+    method: scale_min
+    dataset_state:
+      scale: 4
+
+val:
+  dataset: $val_dataset
+  iteration: 10000

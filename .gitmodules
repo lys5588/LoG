@@ -1,0 +1,3 @@
+[submodule "submodules/EasyVolcap"]
+	path = submodules/EasyVolcap
+	url = git@github.com:lys5588/LoG.git

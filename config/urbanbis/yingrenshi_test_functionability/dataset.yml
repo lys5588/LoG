@@ -1,0 +1,95 @@
+root: data/Yingrenshi_downsample
+PLYNAME: data/Yingrenshi_downsample/sparse/0/sparse.npz
+scale3d: 1.
+xyz_scale: 1.
+
+dataset:
+  module: LoG.dataset.colmap.ImageDataset
+  args:
+    root: $root
+    pre_undis: True
+    share_camera: False
+    scales: [1, 2, 4, 8]
+    crop_size: [-1, -1]
+    znear: 0.001
+    zfar: 100.
+    scale3d: $scale3d
+    ext: .JPG
+  
+val_dataset:
+  module: LoG.dataset.colmap.ImageDataset
+  args:
+    root: $root
+    namelist: 
+      - DJI_0145
+      - DJI_0245
+      - DJI_0345
+      - DJI_0445
+      - DJI_0545
+      - DJI_0645
+      - DJI_0745
+      - DJI_0845
+      - DJI_0945
+      - DJI_0400
+      - DJI_0500
+      - DJI_0185
+      - DJI_0285
+      - DJI_0385
+      - DJI_0485
+      - DJI_0585
+      - DJI_0685
+      - DJI_0785
+      - DJI_0885
+      - DJI_0985
+    cache: cache_val.pkl
+    pre_undis: True
+    share_camera: False
+    scales: [4]
+    znear: 0.001
+    zfar: 100.
+    scale3d: $scale3d
+    ext: .JPG
+
+#demo_interpolate:
+#  model_state:
+#    enable_sh: True
+#    log_query: False
+#  dataset:
+#    module: LoG.dataset.demo.InterpolatePath
+#    args:
+#      cameras: $PLYNAME
+#      scale: 4
+#      steps: 600
+#      subs:
+#        - DJI_0145
+#        - DJI_0245
+#        - DJI_0345
+#        - DJI_0445
+#        - DJI_0545
+#        - DJI_0645
+#        - DJI_0745
+#
+#demo_level:
+#  model_state:
+#    enable_sh: True
+#    log_query: False
+#  dataset:
+#    module: LoG.dataset.demo.ShowLevel
+#    args:
+#      cameras: $PLYNAME
+#      steps: 300
+#      sub: y/8y01073
+#      scale: 4
+#
+#demo_lod:
+#  model_state:
+#    enable_sh: True
+#    log_query: False
+#  dataset:
+#    module: LoG.dataset.demo.ZoomInOut
+#    args:
+#      cameras: $PLYNAME
+#      sub: y/8y01073
+#      zranges: [-20., 1.]
+#      scale: 2
+#      use_logspace: False
