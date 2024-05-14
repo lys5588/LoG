@@ -1,0 +1,1 @@
+python apps/train.py --cfg ./config/urbanbis/yingrenshi_large_scene/train_wdepth.yml split demo_overlook
