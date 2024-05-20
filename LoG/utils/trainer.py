@@ -156,6 +156,7 @@ class Trainer(nn.Module):
                 return False, {}, 0.
         loss = output['loss'] / accumulate_step
         loss.backward()
+        #PROBABLY THE TRE UPDATE STEP
         model.update_by_output(output)
         model.step()
         if self.global_iterations % 10 == 0:
@@ -336,10 +337,10 @@ class Trainer(nn.Module):
             'num_points': model.num_points,
         }
         print(f'>>> Validation: {iteration}: {len(metric["imgname"])} images')
-        for key, val in metric.item():
+        for key, val in metric.items():
             if key == 'imgname':
                 continue
-            mean_val = (sum(val)/len(val)).item()
+            mean_val = sum(val)/len(val)
             record[key] = mean_val
             if self.global_iterations > 0:
                 self.recorder.log(self.global_iterations, f'val/{key}', mean_val)
@@ -487,6 +488,7 @@ class Trainer(nn.Module):
             for iteration, data in enumerate(trainloader):
                 self.model.clear()
                 self.render.iteration = self.global_iterations
+                #MAIN TRAINING PROCESS
                 flag, output, loss = self.training_step(self.model, data)
                 if not flag:
                     self.global_iterations += 1
@@ -507,7 +509,7 @@ class Trainer(nn.Module):
                 if self.overlook_oneframe is not None and self.cfg.overlook_oneframe.iteration > 0 and (iteration) % self.cfg.overlook_oneframe.iteration == 0:
                     self.make_overlook_oneframe()
                 if (iteration + 1) % self.save_interval == 0:
-                    if True:
+                    if False:
                         name = 'model_latest.pth'
                     else:
                         name = f'model_{self.global_iterations:06d}.pth'

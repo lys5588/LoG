@@ -54,6 +54,7 @@ class Counter(nn.Module):
             # count the points hit the maximum pixel
             point_count = output['point_count'][i]
             # sum the total area
+
             self.area_sum[visible_index[point_id]] += point_count
             vis_visible_index = visible_index[index_vis]
             self.create_steps[vis_visible_index] += 1

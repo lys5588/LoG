@@ -1,4 +1,4 @@
-num_workers: &num_workers 4
+num_workers: &num_workers 0
 
 NAIVE_STAGE:
   init:
@@ -16,7 +16,7 @@ NAIVE_STAGE:
       module: iteration
       args:
         batch_size: 1
-        iterations: 800
+        iterations: 250
         num_workers: *num_workers
     dataset_state:
       scale: 4

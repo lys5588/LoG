@@ -69,8 +69,8 @@ class ImageBase:
             cameras_new = {}
             for name in self.namelist:
                 print(name)
-                # name = name.strip()
-                # cameras_new[name] = cameras[name]
+                name = name.strip()
+                cameras_new[name] = cameras[name]
             cameras = cameras_new
         if self.ignorelist is not None:
             if isinstance(self.ignorelist, str):

@@ -96,7 +96,7 @@ class ImageDataset(ImageBase):
             camera[key] = camera_undis[key]
         return camera
 
-    def __init__(self, root, cameras='sparse/0', scales=[1,2,4], 
+    def __init__(self, root, cameras='sparse_align', scales=[1,2,4],
                 scale3d=1., ext='.JPG', images='images', scale_camera_K=1., 
                 mask_ignore=None,
                  pre_undis=True, share_camera=False, crop_size=[-1, -1],
@@ -127,6 +127,7 @@ class ImageDataset(ImageBase):
         self.cachedir = cachedir
         print(f'[{self.__class__.__name__}] cache dir: {self.cachedir}')
         flag, infos = self.read_cache(name=cachedir+'.pkl')
+        flag=False
         if not flag:
             cameras = self.check_cameras(scale3d=scale3d, scale_camera_K=scale_camera_K)
             # undistort and scale

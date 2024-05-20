@@ -183,6 +183,7 @@ class NaiveRendererAndLoss(BaseRender):
             "opacity": opacity,
             "render_time": render_time
         }
+        # if True:
         if self.render_depth:
             ones = torch.ones_like(point_depth)
             height = xyz[:, 2]

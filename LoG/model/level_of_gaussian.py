@@ -241,6 +241,10 @@ class LoG(nn.Module):
                 valid_root_flag[valid_root_flag.clone()] = point_weight > 1e-8
             root_index = root_index[valid_root_flag]
             index_all = self.tree.traverse(self.gaussian, root_index, rasterizer, max_depth=self.current_depth)
+            if len(index_all)==0:
+                #it caused by the vaccent of root_index
+                valid_root_flag, depth, p_proj = self.gaussian._visible_flag_by_camera(xyz, camera, padding=0.5)
+                index_all = self.tree.traverse(self.gaussian, root_index, rasterizer, max_depth=self.current_depth)
             if self.optimizer_cfg.opt_all_levels:
                 # optimize the leaf nodes in all levels
                 flag_isleaf = (self.tree.node_index[index_all] == -1) & (self.tree.depth[index_all] > 0)
@@ -254,6 +258,8 @@ class LoG(nn.Module):
                 'index': index_leaf,
                 'index_node': index_node
             }
+            if len(self.gaussian.visibility_flag['index'])<1:
+                print("len of visiable point is 0")
 
     @property
     def visibility_flag(self):
@@ -547,6 +553,7 @@ class LoG(nn.Module):
         if (iteration + 1) == densify_from_iter:
             self.counter.reset(self.num_points)
             return False
+        #this is where the update do
         if (iteration + 1 > densify_from_iter) and (iteration + 1) % densify_every_iter == 0:
             if (iteration + 1) % upgrade_tree_iter == 0 and self.stage_name != 'init':
                 self.upgrade_tree()
