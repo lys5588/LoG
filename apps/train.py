@@ -178,6 +178,13 @@ def main():
         renderer = load_object(cfg.train.render.module, cfg.train.render.args)
         renderer.split = 'val'
         validate_for_metric(exp, dataset, model, renderer, device)
+    elif cfg.split == 'render_val':
+        dataset = load_object(cfg.train.dataset.module, cfg.train.dataset.args)
+        renderer = load_object(cfg.train.render.module, cfg.train.render.args)
+        trainer = Trainer(cfg, model, renderer)
+        trainer.to(device)
+        trainer.init(dataset)
+        trainer.render_ability(dataset)
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,18 @@
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "name": "Python: Debug train.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/apps/train.py",
+            "args": ["--cfg", "config/Yingrenshi",
+                         "split", "train"
+                        ],
+            "console": "integratedTerminal",
+            "pythonPath": "C:\Users\Admin\miniconda3\envs\log\bin\python"
+        }
+    ]
+}
