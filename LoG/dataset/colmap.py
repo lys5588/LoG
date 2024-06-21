@@ -127,7 +127,7 @@ class ImageDataset(ImageBase):
         self.cachedir = cachedir
         print(f'[{self.__class__.__name__}] cache dir: {self.cachedir}')
         flag, infos = self.read_cache(name=cachedir+'.pkl')
-        flag=False
+        # flag=False
         if not flag:
             cameras = self.check_cameras(scale3d=scale3d, scale_camera_K=scale_camera_K)
             # undistort and scale
@@ -152,6 +152,7 @@ class ImageDataset(ImageBase):
                     'camera': camera_,
                     'scales': scales
                 })
+            #cache demanding
             print(f'[{self.__class__.__name__}] undistort and scale {len(infos)} images ')
             for info in tqdm(infos):
                 read_undistort_rescale_write(info)

@@ -43,6 +43,24 @@ def main():
     mapkey = {}
     cameras_new = {}
 
+
+    # transform image location to world coordinates.
+    t_all = {}
+    minmax_ori=[[0,0],[0,0],[0,0]]
+    for key, val in images.items():
+
+        R = qvec2rotmat(val.qvec)
+        # check = R.T @ R
+        t = val.tvec.reshape(3, 1)
+        for i in range(3):
+            minmax_ori[i]=[min(t[i],minmax_ori[i][0]),max(t[i],minmax_ori[i][1])]
+        t = - R.T @ t
+        t_all[key]=t
+    minmax=[[0,0],[0,0],[0,0]]
+    for key in t_all.keys():
+        for i in range(3):
+            minmax[i]=[min(t_all[key][i],minmax[i][0]),max(t_all[key][i],minmax[i][1])]
+
     for key, val in images.items():
         cam = cameras_out[val.camera_id].copy()
         t = val.tvec.reshape(3, 1)

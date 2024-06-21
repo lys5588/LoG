@@ -651,6 +651,7 @@ class Trainer(nn.Module):
             self.start_time = time.time()
             need_log = True
             moving_mean_loss = 0
+            #the main process.
             for iteration, data in enumerate(trainloader):
                 self.model.clear()
                 self.render.iteration = self.global_iterations
@@ -759,8 +760,6 @@ class Trainer(nn.Module):
 
         # 在这里将所有已有的图片数据根据地理信息进行切分（2d或者3d）
         # 图片的地理信息需要进行生成，得到相对坐标
-
-
 
         self.recorder.log(
             self.global_iterations, "train/batch_size", cur_stage.loader.args.batch_size

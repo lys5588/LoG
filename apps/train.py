@@ -146,7 +146,40 @@ def main():
 
     device = torch.device('cuda')
     model = load_object(cfg.model.module, cfg.model.args)
+    # minmax_pcd = [0, 0, 0, 0, 0, 0]
+    # for i in range(3):
+    #     print(model.gaussian.xyz[:,i].min())
+    #     minmax_pcd[2*i]=model.gaussian.xyz[:,i].min()
+    #     print(model.gaussian.xyz[:,i].max())
+    #     minmax_pcd[2 * i +1] = model.gaussian.xyz[:, i].max()
+
     if cfg.split == 'train':
+        outdir = copy_git_tracked_files('./', exp)
+        dataset = load_object(cfg.train.dataset.module, cfg.train.dataset.args)
+
+        # minmax=[0,0,0,0,0,0]
+        # for l in dataset.infos:
+        #     for i in range(3):
+        #         minmax[2*i]=min(minmax[2*i], l['camera']['T'][i])
+        #         minmax[2 * i+1] = max(minmax[2 * i+1], l['camera']['T'][i])
+
+
+        if 'base_iter' in cfg:
+            base_iter = cfg.base_iter
+        else:
+            # round 100 iteration
+            if len(dataset) < 1000:
+                base_iter = (len(dataset) // 100 + 1) * 100
+            else:
+                base_iter = (len(dataset) // 1000 + 1) * 1000
+        print('Base iteration: {}'.format(base_iter))
+        model.base_iter = base_iter
+        renderer = load_object(cfg.train.render.module, cfg.train.render.args)
+        trainer = Trainer(cfg, model, renderer, logdir=outdir)
+        trainer.to(device)
+        trainer.init(dataset)
+        trainer.fit(dataset)
+    elif cfg.split == 'alpha_sample':
         outdir = copy_git_tracked_files('./', exp)
         dataset = load_object(cfg.train.dataset.module, cfg.train.dataset.args)
         if 'base_iter' in cfg:
