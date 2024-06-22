@@ -132,14 +132,14 @@ class Trainer(nn.Module):
         self.device = device
         return super().to(device)
 
-    def train_loader(self, dataset, args=None, base_iter=1):
+    def train_loader(self, dataset, args=None, base_iter=1,workers=8):
         if args is None:
             stage = self.cfg.train.loader.args
         else:
             stage = args
         batch_size = stage.get("batch_size", 16)
         iterations = stage.get("iterations", 1024) * base_iter
-        num_workers = stage.get("num_workers", 8)
+        num_workers = stage.get("num_workers", workers)
 
         def worker_init_fn(worker_id):
             np.random.seed(worker_id + 42)
@@ -640,7 +640,7 @@ class Trainer(nn.Module):
             if "render_state" in stage.keys():
                 self.render.set_state(**stage.render_state)
             trainloader = self.train_loader(
-                dataset, stage.loader.args, base_iter=self.model.base_iter
+                dataset, stage.loader.args, base_iter=self.model.base_iter,workers=0
             )
             self.recorder.log(
                 self.global_iterations, "train/batch_size", stage.loader.args.batch_size
