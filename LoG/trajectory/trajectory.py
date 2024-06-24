@@ -19,10 +19,11 @@ class Trajectory(object):
                 st_ed_pos=[self.init_points[i],self.init_points[i+1]]
                 interp_points=self.interpolate_path_slerp(st_ed_pos)
 
-            pointlines+=
-
+            pointlines+=self.init_points[-1]
+        return pointlines
     def interpolate_path_slerp(self,st_ed_pos):
         """
+        -working on it
         interpolate the trajectory using slerp
         """
         st=st_ed_pos[0]

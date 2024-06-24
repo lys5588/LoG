@@ -213,6 +213,16 @@ def main():
         validate_for_metric(exp, dataset, model, renderer, device)
     elif cfg.split == 'render_val':
         dataset = load_object(cfg.train.dataset.module, cfg.train.dataset.args)
+        if 'base_iter' in cfg:
+            base_iter = cfg.base_iter
+        else:
+            # round 100 iteration
+            if len(dataset) < 1000:
+                base_iter = (len(dataset) // 100 + 1) * 100
+            else:
+                base_iter = (len(dataset) // 1000 + 1) * 1000
+        print('Base iteration: {}'.format(base_iter))
+        model.base_iter = base_iter
         renderer = load_object(cfg.train.render.module, cfg.train.render.args)
         trainer = Trainer(cfg, model, renderer)
         trainer.to(device)

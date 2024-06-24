@@ -10,7 +10,7 @@ from .recorder import Recorder
 from .config import load_object, Config
 from collections import defaultdict
 # import matplotlib.pyplot as plt
-
+from ..trajectory.camera import Camera_view
 
 def imwrite(imgname, img):
     os.makedirs(os.path.dirname(imgname), exist_ok=True)
@@ -767,19 +767,24 @@ class Trainer(nn.Module):
         self.model.training_setup()
         # if self.val is not None:
         #     self.make_validation(self.global_iterations + 1)
-        self.start_time = time.time()
-        need_log = False
-        moving_mean_loss = 0
+        # self.start_time = time.time()
+        # need_log = False
+        # moving_mean_loss = 0
 
         # generate the trajectory of the model.
         # 1. create by  multiple sparse view , need to generate cache for later usage.
         # 2. read trajectory.
+        view_center=np.array([[-7.07113928],[ 0.04942172],[-0.16061717]])
+        view=Camera_view.gene_from_coords(view_center.reshape((-1,3)),).feature_dict()
+
+
         trajectory_views = None
 
-        for iteration, data in enumerate(trainloader):
+        for data in enumerate(dataset):
             self.model.clear()
             self.render.iteration = self.global_iterations
             # MAIN TRAINING PROCESS
             flag, output, loss = self.training_step(self.model, data)
+            flag, output, loss = self.training_step(self.model, view)
 
             del output, loss
