@@ -10,7 +10,8 @@ from .recorder import Recorder
 from .config import load_object, Config
 from collections import defaultdict
 # import matplotlib.pyplot as plt
-from ..trajectory.camera import Camera_view
+from ..trajectory.camera import Camera_view,ViewDataset
+from ..trajectory.utils import getProjectionMatrix2
 
 def imwrite(imgname, img):
     os.makedirs(os.path.dirname(imgname), exist_ok=True)
@@ -47,9 +48,7 @@ def prepare_batch(data, device):
                 elif torch.is_tensor(val[camk]):
                     val[camk] = val[camk].float().to(device)
                 else:
-                    import ipdb
-
-                    ipdb.set_trace()
+                    continue
             batch[key] = val
         elif torch.is_tensor(val):
             batch[key] = val.to(device)
@@ -57,6 +56,31 @@ def prepare_batch(data, device):
             batch[key] = val
     return batch
 
+
+
+def prepare_view(data, device):
+    batch = {}
+    for key, val in data.items():
+        for camk in val.keys():
+            if camk in [
+                "image_width",
+                "image_height",
+                "FoVy",
+                "FoVx",
+                "znear",
+                "zfar",
+            ]:
+                continue
+            if isinstance(val[camk], np.ndarray):
+                val[camk] = torch.FloatTensor(val[camk]).to(device)
+            elif torch.is_tensor(val[camk]):
+                val[camk] = val[camk].float().to(device)
+            else:
+                import ipdb
+
+                ipdb.set_trace()
+        batch[key] = val
+    return batch
 
 class Trainer(nn.Module):
     def __init__(self, cfg, model, render, logdir="log"):
@@ -139,7 +163,8 @@ class Trainer(nn.Module):
             stage = args
         batch_size = stage.get("batch_size", 16)
         iterations = stage.get("iterations", 1024) * base_iter
-        num_workers = stage.get("num_workers", workers)
+        # num_workers = stage.get("num_workers", workers)
+        num_workers=0 # only on windows
 
         def worker_init_fn(worker_id):
             np.random.seed(worker_id + 42)
@@ -196,32 +221,18 @@ class Trainer(nn.Module):
             self.recorder.log(self.global_iterations, "train/loss", loss)
         return True, output, loss.item()
 
-    def rendering_step(self, model, data, step=True, accumulate_step=1):
+    def rendering_step(self, model, data, step=True, accumulate_step=1,name='source'):
         batch = prepare_batch(data, self.device)
-        output = self.render(batch, model)
-        # check the visible points
-        if (
-            "index" in output["visibility_flag"][0].keys()
-            and output["visibility_flag"][0]["index"].shape[0] == 0
-        ):
-            if "index_node" in output["visibility_flag"][0].keys():
-                pass
-            else:
-                return False, {}, 0.0
-        if "point_id" in output.keys():
-            if output["point_id"][0].shape[0] == 0:
-                print(f'visible points: {output["point_id"][0].shape[0]}')
-                return False, {}, 0.0
-        loss = output["loss"] / accumulate_step
-        loss.backward()
-        # PROBABLY THE TRE UPDATE STEP
-        model.update_by_output(output)
-        model.step()
-        if self.global_iterations % 10 == 0:
-            for key, val in output["loss_dict"].items():
-                self.recorder.log(self.global_iterations, f"train/loss_{key}", val)
-            self.recorder.log(self.global_iterations, "train/loss", loss)
-        return True, output, loss.item()
+        output = self.render.render_image(batch, model)
+        renderd_image = (output['render'][0] * 255).permute(1, 2, 0).detach().cpu().numpy()
+        renderd_image_correct=(output['render_correct'][0]*255).permute(1, 2, 0).detach().cpu().numpy()
+        # write the renderd_image to file using cv functions.
+        # true_value=sum(renderd_image>0)
+        cv2.imwrite(os.path.join('renderoutput', 'rendered_image' + name + '.JPG'), renderd_image)
+        cv2.imwrite(os.path.join('renderoutput','rendered_image_correct'+name+'.JPG'), renderd_image_correct)
+        return True, output
+
+
 
     def init(self, dataset):
         dataset.read_img = False
@@ -615,47 +626,39 @@ class Trainer(nn.Module):
         return False
 
     def fit(self, dataset):
+
         self.global_iterations = 0
         self.global_start_time = time.time()
         for stage_name, stage in self.cfg.train.stages.items():
-            print(
-                f"> Run stage: {stage_name}. {stage.loader.args.iterations * self.model.base_iter} iterations"
-            )
-            if "ckptname" in stage:
+            print(f'> Run stage: {stage_name}. {stage.loader.args.iterations * self.model.base_iter} iterations')
+            if 'ckptname' in stage:
                 ckptname = stage.ckptname
             else:
-                ckptname = join(self.exp, f"model_{stage_name}.pth")
+                ckptname = join(self.exp, f'model_{stage_name}.pth')
             if os.path.exists(ckptname):
-                print(f"Load checkpoint: {ckptname}")
+                print(f'Load checkpoint: {ckptname}')
                 statedict = torch.load(ckptname, map_location=self.device)
-                self.model.load_state_dict(statedict["state_dict"], split="train")
+                self.model.load_state_dict(statedict['state_dict'], split='train')
                 # self.model.check_num_points()
-                self.global_iterations += (
-                    stage.loader.args.iterations * self.model.base_iter
-                )
+                self.global_iterations += stage.loader.args.iterations * self.model.base_iter
                 continue
             dataset.set_state(**stage.dataset_state)
             self.model.set_stage(stage_name)
             self.model.set_state(**stage.model_state)
-            if "render_state" in stage.keys():
+            if 'render_state' in stage.keys():
                 self.render.set_state(**stage.render_state)
-            trainloader = self.train_loader(
-                dataset, stage.loader.args, base_iter=self.model.base_iter,workers=0
-            )
-            self.recorder.log(
-                self.global_iterations, "train/batch_size", stage.loader.args.batch_size
-            )
+            trainloader = self.train_loader(dataset, stage.loader.args, base_iter=self.model.base_iter)
+            self.recorder.log(self.global_iterations, 'train/batch_size', stage.loader.args.batch_size)
             self.model.training_setup()
             if self.val is not None:
                 self.make_validation(self.global_iterations + 1)
             self.start_time = time.time()
             need_log = True
             moving_mean_loss = 0
-            #the main process.
             for iteration, data in enumerate(trainloader):
+                cam = data['camera']
                 self.model.clear()
                 self.render.iteration = self.global_iterations
-                # MAIN TRAINING PROCESS
                 flag, output, loss = self.training_step(self.model, data)
                 if not flag:
                     self.global_iterations += 1
@@ -663,106 +666,79 @@ class Trainer(nn.Module):
                 moving_mean_loss += loss
                 if (iteration + 1) % self.log_inverval == 0 or need_log:
                     need_log = False
-                    self.log_in_training(
-                        iteration,
-                        len(trainloader),
-                        data,
-                        moving_mean_loss / self.log_inverval,
-                        output,
-                    )
+                    self.log_in_training(iteration, len(trainloader), data, moving_mean_loss / self.log_inverval,
+                                         output)
                     if (iteration + 1) % self.log_inverval == 0 and iteration > 0:
-                        self.recorder.log(
-                            self.global_iterations,
-                            "train/loss_mean",
-                            moving_mean_loss / self.log_inverval,
-                        )
+                        # wandb.log({"global_iteration": self.global_iterations, "train/loss_mean": moving_mean_loss / self.log_inverval})
+                        self.recorder.log(self.global_iterations, 'train/loss_mean',
+                                          moving_mean_loss / self.log_inverval)
                         moving_mean_loss = 0
                 del output, loss
-                if (
-                    self.val is not None
-                    and (iteration + 1) % self.cfg.val.iteration == 0
-                ):
-                    self.make_validation(self.global_iterations)
+                # if self.val is not None and (iteration + 1) % self.cfg.val.iteration == 0:
+                #     self.make_validation(self.global_iterations)
                 # Do the overlook
-                if self.overlook is not None and self.check_iteration(
-                    stage_name, iteration + 1, self.cfg.overlook.iteration
-                ):
+                if self.overlook is not None and self.check_iteration(stage_name, iteration + 1,
+                                                                      self.cfg.overlook.iteration):
                     self.make_overlook()
-                if (
-                    self.overlook_oneframe is not None
-                    and self.cfg.overlook_oneframe.iteration > 0
-                    and (iteration) % self.cfg.overlook_oneframe.iteration == 0
-                ):
+                if self.overlook_oneframe is not None and self.cfg.overlook_oneframe.iteration > 0 and (
+                iteration) % self.cfg.overlook_oneframe.iteration == 0:
                     self.make_overlook_oneframe()
                 if (iteration + 1) % self.save_interval == 0:
                     if False:
-                        name = "model_latest.pth"
+                        name = 'model_latest.pth'
                     else:
-                        name = f"model_{self.global_iterations:06d}.pth"
-                    print(f"Save checkpoint...: ", join(self.exp, name))
+                        name = f'model_{self.global_iterations:06d}.pth'
+                    print(f'Save checkpoint...: ', join(self.exp, name))
                     self.save_ckpt(join(self.exp, name))
                 with torch.no_grad():
                     if (iteration + 1) < len(trainloader):
                         # only update during fitting process
-                        flag_update = self.model.update_by_iteration(
-                            iteration, self.global_iterations
-                        )
+                        flag_update = self.model.update_by_iteration(iteration, self.global_iterations)
                         if flag_update:
                             need_log = True
-                            if self.overlook is not None and self.check_iteration(
-                                stage_name, iteration + 1, self.cfg.overlook.iteration
-                            ):
+                            if self.overlook is not None and self.check_iteration(stage_name, iteration + 1,
+                                                                                  self.cfg.overlook.iteration):
                                 self.make_overlook(iteration=self.global_iterations + 1)
                             # self.make_overlook(mode='grad', iteration=self.global_iterations + 1)
                             # self.make_overlook(mode='offset', iteration=self.global_iterations + 1)
-                            self.recorder.log(
-                                self.global_iterations,
-                                "train/num_points",
-                                self.model.num_points,
-                            )
+                            # wandb.log({"global_iteration": self.global_iterations, "train/num_points": self.model.num_points})
+                            self.recorder.log(self.global_iterations, 'train/num_points', self.model.num_points)
                 if self.global_iterations % 10 == 0:
-                    self.recorder.log(self.global_iterations, "train/lr", self.model.lr)
+                    self.recorder.log(self.global_iterations, 'train/lr', self.model.lr)
+                    # log metrics to wandb
+                    # wandb.log({"global_iteration": self.global_iterations, "train/lr": self.model.lr})
                 self.global_iterations += 1
-            ckptname = join(self.exp, f"model_{stage_name}.pth")
+            ckptname = join(self.exp, f'model_{stage_name}.pth')
             self.save_ckpt(ckptname)
 
     def render_ability(self, dataset):
         self.global_iterations = 0
         self.global_start_time = time.time()
-        cur_stage_name = None
-        cur_stage = None
-        # selection of stage
-        for stage_name, stage in self.cfg.train.stages.items():
-            print(
-                f"> Run stage: {stage_name}. {stage.loader.args.iterations * self.model.base_iter} iterations"
+        stage_name='render'
+        stage=self.cfg.train.stages.render
+        ckptname = join(self.exp, f"model_{stage_name}.pth")
+        if os.path.exists(ckptname):
+            print(f"Load checkpoint: {ckptname}")
+            statedict = torch.load(ckptname, map_location=self.device)
+            self.model.load_state_dict(statedict["state_dict"], split="train")
+            # self.model.check_num_points()
+            self.global_iterations += (
+                stage.loader.args.iterations * self.model.base_iter
             )
-            if "ckptname" in stage:
-                ckptname = stage.ckptname
-            else:
-                ckptname = join(self.exp, f"model_{stage_name}.pth")
-            if os.path.exists(ckptname):
-                print(f"Load checkpoint: {ckptname}")
-                statedict = torch.load(ckptname, map_location=self.device)
-                self.model.load_state_dict(statedict["state_dict"], split="train")
-                # self.model.check_num_points()
-                self.global_iterations += (
-                    stage.loader.args.iterations * self.model.base_iter
-                )
-                continue
-            cur_stage_name = stage_name
-            cur_stage = stage
+        else:
+            return
 
-        dataset.set_state(**cur_stage.dataset_state)
-        self.model.set_stage(cur_stage_name)
-        self.model.set_state(**cur_stage.model_state)
-        if "render_state" in cur_stage.keys():
-            self.render.set_state(**cur_stage.render_state)
+        dataset.set_state(**stage.dataset_state)
+        self.model.set_stage(stage_name)
+        self.model.set_state(**stage.model_state)
+        if "render_state" in stage.keys():
+            self.render.set_state(**stage.render_state)
 
         # 在这里将所有已有的图片数据根据地理信息进行切分（2d或者3d）
         # 图片的地理信息需要进行生成，得到相对坐标
 
         self.recorder.log(
-            self.global_iterations, "train/batch_size", cur_stage.loader.args.batch_size
+            self.global_iterations, "train/batch_size", stage.loader.args.batch_size
         )
         self.model.training_setup()
         # if self.val is not None:
@@ -774,17 +750,76 @@ class Trainer(nn.Module):
         # generate the trajectory of the model.
         # 1. create by  multiple sparse view , need to generate cache for later usage.
         # 2. read trajectory.
-        view_center=np.array([[-7.07113928],[ 0.04942172],[-0.16061717]])
-        view=Camera_view.gene_from_coords(view_center.reshape((-1,3)),).feature_dict()
+        # key_words = ['x-45', 'y-45', 'z-45', 'origin']
+        key='world'
+        # for rot_t in tqdm(range(180)):
+        # for rot_t in tqdm(range(0,180,15)):
+        rot_t=0
+        R_origin = dataset.infos[0]['camera']['R']
+        coord_origin=dataset.infos[0]['camera']['center'].reshape(3,)
 
 
-        trajectory_views = None
+        # for i in range(len(dataset.infos)):
+        #     dataset.infos[i]['camera']['R']=R_origin.T @ dataset.infos[i]['camera']['R']
+        #     dataset.infos[i]['camera']['center']=R_origin.T @ dataset.infos[i]['camera']['center']-R_origin.T @ coord_origin
+        #     dataset.infos[i]['camera']['world_view_transform'][:3,:3]=dataset.infos[i]['camera']['R']
+        #     dataset.infos[i]['camera']['world_view_transform'][:3, 3] = dataset.infos[i]['camera']['T']
+        #     dataset.infos[i]['camera']['full_proj_transform'] = dataset.infos[i]['camera']['world_view_transform'] @ dataset.infos[i]['camera'][
+        #         'projection_matrix']
 
-        for data in enumerate(dataset):
-            self.model.clear()
-            self.render.iteration = self.global_iterations
-            # MAIN TRAINING PROCESS
-            flag, output, loss = self.training_step(self.model, data)
-            flag, output, loss = self.training_step(self.model, view)
 
-            del output, loss
+
+        # for z in range(60):
+        for z in [0]:
+
+            # z_f=z/10.-3.
+            # view_center=dataset.infos[300]['camera']['center']
+            view_center=np.array([0.,0.,0.])
+            views=[cam.feature_dict() for cam in Camera_view.gene_from_coords(view_center.reshape((-1,3)),rot_type=key,rot_theta=rot_t,R_origin=R_origin,coord_origin=coord_origin)]
+            view_dataset=ViewDataset(views,self.device)
+
+            trajectory_views = None
+
+            # dataset.infos=[dataset.infos[0]]
+            source_view_loader = self.train_loader(
+                dataset, stage.loader.args, base_iter=1, workers=0
+            )
+            target_view_loader = self.train_loader(
+                view_dataset, stage.loader.args, base_iter=len(views), workers=0
+            )
+
+            # the loop of the model
+            # for iteration, data in enumerate(target_view_loader):
+            #     flag, output, loss = self.rendering_step(self.model, data)
+            for iteration, data in enumerate(source_view_loader):
+                data_real=data.copy()
+                flag, output = self.rendering_step(self.model, data_real)
+                # data['camera']['K']=torch.from_numpy(views[0]['K'])
+                # data['camera']['projection_matrix'] = torch.from_numpy(getProjectionMatrix2(
+                #     K=data['camera']['K'], H=data['camera']['image_height'], W=data['camera']['image_width'],
+                #     znear=data['camera']['znear'], zfar=data['camera']['zfar']).T).to(self.device)
+                # data['camera']['full_proj_transform']=data['camera']['world_view_transform']@data['camera']['projection_matrix']
+                # data['camera']['K'].unsqueeze_(0).to(self.device)
+                # data['camera']['projection_matrix'].unsqueeze_(0)
+
+                #test for extrinsic attribute
+                # world_view_transform = np.eye(4)
+                # world_view_transform[:3, :3] = views[0]['R']
+                # world_view_transform[:3, 3] = views[0]['T']
+                # world_view_transform = world_view_transform.T
+                #
+                # data['camera']['T']=torch.from_numpy(views[0]['T']).unsqueeze_(0).to(dtype=torch.float32, device=self.device)
+                # data['camera']['R']=torch.from_numpy(views[0]['R']).unsqueeze_(0).to(dtype=torch.float32, device=self.device)
+                # camera_temp=data['camera']['camera_center'].detach().cpu()
+                # data['camera']['camera_center'] = torch.from_numpy(views[0]['camera_center'].reshape(3, )).unsqueeze_(0).to(self.device)
+                # world_view_transform_temp=data['camera']['world_view_transform'].detach().cpu()
+                # data['camera']['world_view_transform'] = torch.from_numpy(world_view_transform).unsqueeze_(0).to(dtype=torch.float32, device=self.device)
+                # full_proj_transform_temp=data['camera']['full_proj_transform'].detach().cpu()
+                # data['camera']['full_proj_transform'] = data['camera']['world_view_transform'] @ data['camera']['projection_matrix']
+                #
+                # flag, output = self.rendering_step(self.model, data,name=key+str(z))
+                break
+
+    def check_dataset(self,dataset):
+        print(len(dataset.infos))
+        pass

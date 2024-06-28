@@ -21,18 +21,18 @@ train:
   dataset: $dataset
   render: $RGB_RENDER_L1_SSIM
   stages: $NAIVE_STAGE
-  init:
-    method: scale_min
-    dataset_state:
-      scale: 4
+#  init:
+#    method: scale_min
+#    dataset_state:
+#      scale: 4
 render_val:
   dataset: $dataset
   render: $RGB_RENDER_L1_SSIM
   stages: $NAIVE_STAGE
-  init:
-    method: scale_min
-    dataset_state:
-      scale: 4
+#  init:
+#    method: scale_min
+#    dataset_state:
+#      scale: 4
 
 # val:
 #   dataset: $val_dataset

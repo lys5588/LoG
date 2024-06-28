@@ -316,6 +316,19 @@ class NaiveRendererAndLoss(BaseRender):
             output['gt'] = gt_image
         return output
 
+    def set_render_path(self,path):
+        self.render_path=path
+    def render_image(self, batch, model):
+        output = self.vis(batch, model)
+        render = output['render'][:, :3]
+
+        # renderd_image=output['render'][0]
+        #write the renderd_image to file using cv functions.
+        # cv2.imwrite(os.path.join(self.render_path, 'rendered_image.png'), renderd_image)
+
+        return output
+
+
 class MaskForeground(NaiveRendererAndLoss):
     def bound_from_mask(self, msk, padding):
         assert msk.shape[0] == 1, 'only support batch size 1'

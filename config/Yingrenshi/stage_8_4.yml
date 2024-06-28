@@ -24,3 +24,16 @@ NAIVE_STAGE:
       render_depth: False
     model_state:
       enable_sh: True
+  render:
+    loader:
+      module: iteration
+      args:
+        batch_size: 1
+        iterations: 200
+        num_workers: *num_workers
+    dataset_state:
+      scale: 4
+    render_state:
+      render_depth: False
+    model_state:
+      enable_sh: True

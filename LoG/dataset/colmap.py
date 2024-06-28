@@ -203,10 +203,12 @@ class ImageDataset(ImageBase):
         return img, camera
 
     def __getitem__(self, index):
-        if self.partial_indices is None:
-            true_index = index
-        else:
-            true_index = self.partial_indices[index]
+        if True:
+            true_index = 0
+        # if self.partial_indices is None:
+        #     true_index = index
+        # else:
+        #     true_index = self.partial_indices[index]
         data = self.infos[true_index]
         imgname = data['imgname']
         imgname = join(self.cachedir, str(self.current_scale), imgname)

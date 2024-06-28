@@ -14,3 +14,5 @@ images
 *.out
 *.obj
 preprocess
+events.out.tfevents.*
+renderoutput

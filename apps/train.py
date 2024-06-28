@@ -231,3 +231,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # path=r"D:\repository\project\sci\LoG\data\Yingrenshi\images\DJI_0145.JPG"
+    # img = cv2.imread(path)
+    # print(img)
